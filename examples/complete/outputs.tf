@@ -46,3 +46,7 @@ output "cluster_host" {
   value       = module.redis.host
   description = "Redis hostname"
 }
+
+output "sg_vpc" {
+  value = module.vpc.vpc_default_security_group_id
+}

@@ -36,6 +36,8 @@ cloudwatch_metric_alarms_enabled = true
 
 #--- Test Jump Box
 
+create_jumpbox        = true
+
 jumpbox_instance_type = "t2.micro"
 
 key_name              = "tfelasticache"

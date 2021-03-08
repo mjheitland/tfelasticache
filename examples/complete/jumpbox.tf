@@ -37,6 +37,12 @@ data "aws_ami" "amazon_linux_2" {
 #--- Variables
 #-------------
 
+variable "create_jumpbox" {
+  description = "create a jumpbox for testing purposes in every AZ"
+  type        = bool
+  default     = false    
+}
+
 variable "project" {
   description = "project name is used as resource tag"
   type        = string
@@ -64,11 +70,15 @@ variable "jumpbox_instance_type" {
 #-------------
 
 resource "aws_key_pair" "keypair" {
+  count       = var.create_jumpbox == true ? 1 : 0
+  
   key_name   = var.key_name
   public_key = file(var.public_key_path)
 }
 
 resource "aws_security_group" "sg_jumpbox" {
+  count       = var.create_jumpbox == true ? 1 : 0
+  
   name        = "sg_jumpbox"
   description = "Used for access to the public instances"
   vpc_id      = module.vpc.vpc_id
@@ -92,14 +102,14 @@ resource "aws_security_group" "sg_jumpbox" {
 }
 
 resource "aws_instance" "jumpbox" {
-  count = length(module.subnets.public_subnet_ids)
+  count = var.create_jumpbox == true ? length(module.subnets.public_subnet_ids) : 0
 
   instance_type           = var.jumpbox_instance_type
   ami                     = data.aws_ami.amazon_linux_2.id # for Frankfurt Feb 2021 it would be "ami-02f9ea74050d6f812" 
-  key_name                = aws_key_pair.keypair.id
+  key_name                = aws_key_pair.keypair[0].id
   subnet_id               = sort(module.subnets.public_subnet_ids)[count.index]
   vpc_security_group_ids  = [ 
-                              aws_security_group.sg_jumpbox.id,
+                              aws_security_group.sg_jumpbox[0].id,
                               module.vpc.vpc_default_security_group_id,
                               module.redis.security_group_id
                             ]
@@ -116,21 +126,17 @@ resource "aws_instance" "jumpbox" {
 #-----------
 
 output "keypair_id" {
-  value = join(", ", aws_key_pair.keypair.*.id)
+  value = var.create_jumpbox == true ? join(", ", aws_key_pair.keypair.*.id) : ""
 }
 
 output "jumpbox_ids" {
-  value = join(", ", aws_instance.jumpbox.*.id)
+  value = var.create_jumpbox == true ? join(", ", aws_instance.jumpbox.*.id) : ""
 }
 
 output "jumpbox_public_ips" {
-  value = join(", ", aws_instance.jumpbox.*.public_ip)
+  value = var.create_jumpbox == true ? join(", ", aws_instance.jumpbox.*.public_ip) : ""
 }
 
 output "sg_jumpbox" {
-  value = aws_security_group.sg_jumpbox.id
-}
-
-output "sg_vpc" {
-  value = module.vpc.vpc_default_security_group_id
+  value = var.create_jumpbox == true ? join(", ", aws_security_group.sg_jumpbox.*.id) : ""
 }
